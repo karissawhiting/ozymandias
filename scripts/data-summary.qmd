@@ -1,0 +1,97 @@
+---
+title: "Data Summary"
+format: html
+editor: source
+---
+
+
+```{r}
+library(tidyverse)
+library(gtsummary)
+library(gt)
+```
+
+## Removed Statues
+
+```{r}
+
+sum_mon <- all_mon %>%
+  group_by(city) %>%
+  count() %>%
+  arrange(desc(n)) 
+
+sum_mon_rem <- all_mon %>%
+  group_by(city, removed) %>%
+  count(name = "n_removed") %>%
+  arrange(desc(n_removed))%>%
+  filter(removed == "Yes")
+
+sum_mon <- left_join(sum_mon, sum_mon_rem)
+
+top_cities <- sum_mon %>%
+  head(15) %>%
+  pull(city)
+
+all_mon %>% 
+  filter(city %in% top_cities) %>%
+  select(city) %>% 
+  tbl_summary(sort = everything() ~ "frequency") %>% 
+  bold_labels()
+
+
+p <- sum_mon %>% 
+  filter(city %in% top_cities) %>%
+  filter(!is.na(city))
+
+p$city <- fct_reorder(p$city, p$n, .desc = TRUE)
+
+p %>%
+  ggplot(aes(x = city, y = n)) + 
+  geom_col() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+sum_mon_rem <- sum_mon %>%
+  filter(!is.na(n_removed)) %>%
+  select(-removed)
+
+sum_mon_rem <- sum_mon_rem %>%
+  mutate(prop_rem = round((n_removed/n)*100, 3)) %>%
+  ungroup() %>%
+  filter(!is.na(city))
+
+sum_mon_rem <- sum_mon_rem %>% 
+  arrange(desc(n)) %>%
+  filter(n > 50) 
+```
+
+```{r }
+sum_mon_rem %>%
+  arrange(desc(prop_rem)) %>%
+  gt()
+
+
+
+```
+
+```{r}
+p <- sum_mon_rem %>%
+  mutate(n_there = n - n_removed) %>%
+  select(city, n_removed, n_there, n) %>%
+  pivot_longer(-c(city, n)) 
+
+p$city <- fct_reorder(p$city, p$n, .desc = TRUE)
+
+p %>%
+  ggplot(aes(x = city, y = value, fill = name)) + geom_col()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r}
+nyc_all_mon %>%
+  select(gender_represented) %>% tbl_summary()
+
+
+nyc_all_mon %>% filter(str_detect(subjects, "women|Women|woman|Woman|female|Female")) %>% transmute(year = as.factor(year_dedicated_or_constructed3)) %>% tbl_summary(sort = everything() ~ "frequency")
+```
+
